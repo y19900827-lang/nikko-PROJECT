@@ -55,7 +55,9 @@ export async function generateLabelSheetPdf(
     const x = PAGE_MARGIN + column * (labelWidth + GAP);
     const y = A4_HEIGHT - PAGE_MARGIN - labelHeight - row * (labelHeight + GAP);
     const qrImage = await createQrImage(pdf, product);
-    const price = `\u00A5${new Intl.NumberFormat("ja-JP").format(product.sale_price)}`;
+    const price = supportsJapanese
+      ? `\u00A5${new Intl.NumberFormat("ja-JP").format(product.sale_price)}`
+      : `JPY ${new Intl.NumberFormat("ja-JP").format(product.sale_price)}`;
 
     drawLabel(page, {
       x,
@@ -64,7 +66,7 @@ export async function generateLabelSheetPdf(
       height: labelHeight,
       productCode: product.product_code,
       price,
-      sizeLabel: supportsJapanese ? `サイズ: ${product.size}` : `Size: ${product.size}`,
+      sizeLabel: supportsJapanese ? `サイズ: ${product.size}` : `Size: ${toAsciiSize(product.size)}`,
       qrImage,
       font,
       boldFont
@@ -170,4 +172,17 @@ function resolveJapaneseFontPath() {
 
   const bundledPath = path.join(process.cwd(), "public", "fonts", "label-font.otf");
   return existsSync(bundledPath) ? bundledPath : null;
+}
+
+function toAsciiSize(size: Product["size"]) {
+  const map: Record<Product["size"], string> = {
+    S: "S",
+    M: "M",
+    L: "L",
+    LL: "LL",
+    "3L以上": "3L+",
+    "不明": "Unknown"
+  };
+
+  return map[size] ?? "Unknown";
 }
