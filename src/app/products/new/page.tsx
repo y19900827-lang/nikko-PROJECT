@@ -16,8 +16,8 @@ import type { AnalyzeProductResult } from "@/lib/types";
 
 const initialForm = {
   purchaseDate: todayIsoDate(),
-  purchasePrice: "",
-  salePrice: "",
+  purchasePrice: "0",
+  salePrice: "0",
   category: "ドレス",
   danceStyle: "ラテン",
   color: "不明",
@@ -31,8 +31,10 @@ export default function NewProductPage() {
   const router = useRouter();
   const [frontFile, setFrontFile] = useState<File | null>(null);
   const [tagFile, setTagFile] = useState<File | null>(null);
+  const [invoiceFile, setInvoiceFile] = useState<File | null>(null);
   const [frontPreview, setFrontPreview] = useState("");
   const [tagPreview, setTagPreview] = useState("");
+  const [invoicePreview, setInvoicePreview] = useState("");
   const [form, setForm] = useState(initialForm);
   const [analysis, setAnalysis] = useState<AnalyzeProductResult | null>(null);
   const [busy, setBusy] = useState(false);
@@ -43,14 +45,15 @@ export default function NewProductPage() {
     return () => {
       if (frontPreview) URL.revokeObjectURL(frontPreview);
       if (tagPreview) URL.revokeObjectURL(tagPreview);
+      if (invoicePreview) URL.revokeObjectURL(invoicePreview);
     };
-  }, [frontPreview, tagPreview]);
+  }, [frontPreview, tagPreview, invoicePreview]);
 
   function updateForm(key: keyof typeof initialForm, value: string) {
     setForm((current) => ({ ...current, [key]: value }));
   }
 
-  async function updateImage(kind: "front" | "tag", event: ChangeEvent<HTMLInputElement>) {
+  async function updateImage(kind: "front" | "tag" | "invoice", event: ChangeEvent<HTMLInputElement>) {
     const pickedFile = event.target.files?.[0] ?? null;
     const file = pickedFile ? await prepareImageForUpload(pickedFile) : null;
     const preview = file ? URL.createObjectURL(file) : "";
@@ -59,10 +62,14 @@ export default function NewProductPage() {
       if (frontPreview) URL.revokeObjectURL(frontPreview);
       setFrontFile(file);
       setFrontPreview(preview);
-    } else {
+    } else if (kind === "tag") {
       if (tagPreview) URL.revokeObjectURL(tagPreview);
       setTagFile(file);
       setTagPreview(preview);
+    } else {
+      if (invoicePreview) URL.revokeObjectURL(invoicePreview);
+      setInvoiceFile(file);
+      setInvoicePreview(preview);
     }
   }
 
@@ -81,6 +88,9 @@ export default function NewProductPage() {
       const data = new FormData();
       data.append("frontImage", frontFile);
       data.append("tagImage", tagFile);
+      if (invoiceFile) {
+        data.append("invoiceImage", invoiceFile);
+      }
 
       const response = await fetch("/api/analyze-product", {
         method: "POST",
@@ -98,7 +108,9 @@ export default function NewProductPage() {
         category: payload.category,
         danceStyle: payload.dance_style,
         color: payload.color,
-        size: payload.size
+        size: payload.size,
+        purchasePrice: payload.purchase_price ? String(payload.purchase_price) : current.purchasePrice,
+        salePrice: payload.sale_price ? String(payload.sale_price) : current.salePrice
       }));
       setMessage("AI候補をフォームに反映しました。");
     } catch (caught) {
@@ -124,6 +136,9 @@ export default function NewProductPage() {
       const uploadData = new FormData();
       uploadData.append("frontImage", frontFile);
       uploadData.append("tagImage", tagFile);
+      if (invoiceFile) {
+        uploadData.append("invoiceImage", invoiceFile);
+      }
 
       const uploadResponse = await fetch("/api/uploads", {
         method: "POST",
@@ -143,6 +158,7 @@ export default function NewProductPage() {
         body: JSON.stringify({
           frontImagePath: uploadPayload.frontImagePath,
           tagImagePath: uploadPayload.tagImagePath,
+          invoiceImagePath: uploadPayload.invoiceImagePath,
           purchaseDate: form.purchaseDate,
           purchasePrice: Number(form.purchasePrice),
           salePrice: Number(form.salePrice),
@@ -202,6 +218,12 @@ export default function NewProductPage() {
               preview={tagPreview}
               onChange={(event) => updateImage("tag", event)}
             />
+            <ImagePicker
+              title="納品書写真（任意）"
+              icon={<FileImage size={18} />}
+              preview={invoicePreview}
+              onChange={(event) => updateImage("invoice", event)}
+            />
             <button className="button primary" type="button" onClick={analyzeImages} disabled={busy}>
               <Sparkles size={18} />
               AI解析
@@ -210,6 +232,8 @@ export default function NewProductPage() {
               <div className="analysis-result">
                 <strong>AI候補</strong>
                 <span>信頼度: {Math.round(analysis.confidence * 100)}%</span>
+                {analysis.purchase_price ? <span>仕入価格候補: ¥{analysis.purchase_price.toLocaleString("ja-JP")}</span> : null}
+                {analysis.sale_price ? <span>販売価格候補: ¥{analysis.sale_price.toLocaleString("ja-JP")}</span> : null}
                 <span>{analysis.raw_notes}</span>
               </div>
             ) : null}
@@ -228,23 +252,23 @@ export default function NewProductPage() {
               <input type="date" value={form.purchaseDate} onChange={(event) => updateForm("purchaseDate", event.target.value)} required />
             </label>
             <label className="field">
-              <span>仕入価格</span>
-              <input type="number" min="0" value={form.purchasePrice} onChange={(event) => updateForm("purchasePrice", event.target.value)} required />
+              <span>仕入価格（不明なら0）</span>
+              <input type="number" inputMode="numeric" min="0" value={form.purchasePrice} onChange={(event) => updateForm("purchasePrice", event.target.value)} required />
             </label>
             <label className="field">
-              <span>販売価格</span>
-              <input type="number" min="0" value={form.salePrice} onChange={(event) => updateForm("salePrice", event.target.value)} required />
+              <span>販売価格（未定なら0）</span>
+              <input type="number" inputMode="numeric" min="0" value={form.salePrice} onChange={(event) => updateForm("salePrice", event.target.value)} required />
             </label>
             <label className="field">
-              <span>仕入先</span>
+              <span>仕入先（任意）</span>
               <input value={form.supplier} onChange={(event) => updateForm("supplier", event.target.value)} />
             </label>
             <label className="field">
-              <span>保管場所</span>
+              <span>保管場所（任意）</span>
               <input value={form.storageLocation} onChange={(event) => updateForm("storageLocation", event.target.value)} />
             </label>
             <label className="field span-2">
-              <span>備考</span>
+              <span>備考（任意）</span>
               <textarea value={form.notes} onChange={(event) => updateForm("notes", event.target.value)} />
             </label>
             <button className="button primary span-2" type="submit" disabled={busy}>

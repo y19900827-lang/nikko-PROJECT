@@ -33,6 +33,7 @@ create table if not exists public.products (
   product_code text unique not null,
   front_image_path text not null,
   tag_image_path text not null,
+  invoice_image_path text,
   registered_at timestamptz not null default now(),
   purchase_date date not null,
   purchase_price integer not null check (purchase_price >= 0),

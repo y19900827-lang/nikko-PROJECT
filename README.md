@@ -36,6 +36,7 @@ npm run dev:mobile
 
 - 商品登録
 - 正面写真とタグ写真のアップロード
+- 納品書写真のアップロード（任意）
 - OpenAI Vision APIによる候補作成
 - AI候補の手修正
 - 商品ID自動発行
@@ -48,6 +49,11 @@ npm run dev:mobile
 商品情報はSupabase Database、写真はSupabase Storageに保存されます。
 公開URLで使う場合も、PCを閉じてもデータは消えません。
 Supabase側で削除しない限り残ります。
+
+## OPENAI_API_KEY未設定と出た場合
+
+ローカルでは `.env.local`、Vercel公開版ではVercelのEnvironment Variablesに `OPENAI_API_KEY` が必要です。
+Vercelで追加または修正したあとは、最新のデプロイをRedeployしてください。
 
 `LABEL_FONT_PATH` は値札PDFで日本語フォントを使いたい場合だけ設定します。
 未設定の場合は `public/fonts/label-font.otf` を探し、見つからない場合は英字のサイズ表記に戻ります。

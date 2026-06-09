@@ -28,6 +28,16 @@
 5. `Deploy` を押します。
 6. 完了後に出る `https://...vercel.app` のURLをスマホで開きます。
 
+## 環境変数をあとから直した場合
+
+`OPENAI_API_KEY未設定です` と出る場合は、Vercel側に `OPENAI_API_KEY` が入っていないか、入れたあと再デプロイされていない可能性があります。
+`Invalid supabaseUrl` と出る場合は、Vercel側の `NEXT_PUBLIC_SUPABASE_URL` が未設定か、`https://xxxxx.supabase.co` 以外の文字になっている可能性があります。
+
+1. Vercelのプロジェクトを開きます。
+2. 左メニューの `Environment Variables` を開きます。
+3. 必要な環境変数を追加または修正します。
+4. `Deployments` を開き、最新デプロイのメニューから `Redeploy` を押します。
+
 ## 重要
 
 - `.env.local` はGitHubにアップロードしません。

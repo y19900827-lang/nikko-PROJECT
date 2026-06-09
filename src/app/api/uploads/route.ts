@@ -16,18 +16,20 @@ export async function POST(request: Request) {
     const formData = await request.formData();
     const frontImage = formData.get("frontImage");
     const tagImage = formData.get("tagImage");
+    const invoiceImage = formData.get("invoiceImage");
 
     if (!isFile(frontImage) || !isFile(tagImage)) {
       return NextResponse.json({ error: "正面写真とタグ写真を選んでください。" }, { status: 400 });
     }
 
     const supabase = getSupabaseAdmin();
-    const [frontImagePath, tagImagePath] = await Promise.all([
+    const [frontImagePath, tagImagePath, invoiceImagePath] = await Promise.all([
       uploadImage(supabase, frontImage, "front"),
-      uploadImage(supabase, tagImage, "tag")
+      uploadImage(supabase, tagImage, "tag"),
+      isFile(invoiceImage) ? uploadImage(supabase, invoiceImage, "invoice") : Promise.resolve(null)
     ]);
 
-    return NextResponse.json({ frontImagePath, tagImagePath });
+    return NextResponse.json({ frontImagePath, tagImagePath, invoiceImagePath });
   } catch (caught) {
     return NextResponse.json(
       { error: caught instanceof Error ? caught.message : "画像アップロードに失敗しました。" },
@@ -39,7 +41,7 @@ export async function POST(request: Request) {
 async function uploadImage(
   supabase: ReturnType<typeof getSupabaseAdmin>,
   file: File,
-  kind: "front" | "tag"
+  kind: "front" | "tag" | "invoice"
 ) {
   const extension = ALLOWED_TYPES.get(file.type);
 

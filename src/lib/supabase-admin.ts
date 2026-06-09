@@ -13,6 +13,10 @@ export function getSupabaseAdmin() {
     throw new Error("Supabaseの環境変数が未設定です。");
   }
 
+  if (!supabaseUrl.startsWith("https://") && !supabaseUrl.startsWith("http://")) {
+    throw new Error("Supabase URLが正しくありません。VercelのNEXT_PUBLIC_SUPABASE_URLにhttps://から始まるProject URLを入れてください。");
+  }
+
   if (!cachedClient) {
     cachedClient = createClient(supabaseUrl, serviceRoleKey, {
       auth: {

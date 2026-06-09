@@ -26,15 +26,19 @@ export async function attachSignedImageUrls<T extends Product | Product[]>(
   }
 
   const product = value as Product;
-  const [front, tag] = await Promise.all([
+  const [front, tag, invoice] = await Promise.all([
     supabase.storage.from(PRODUCT_IMAGES_BUCKET).createSignedUrl(product.front_image_path, 60 * 60),
-    supabase.storage.from(PRODUCT_IMAGES_BUCKET).createSignedUrl(product.tag_image_path, 60 * 60)
+    supabase.storage.from(PRODUCT_IMAGES_BUCKET).createSignedUrl(product.tag_image_path, 60 * 60),
+    product.invoice_image_path
+      ? supabase.storage.from(PRODUCT_IMAGES_BUCKET).createSignedUrl(product.invoice_image_path, 60 * 60)
+      : Promise.resolve({ data: null })
   ]);
 
   return {
     ...product,
     front_image_url: front.data?.signedUrl ?? null,
-    tag_image_url: tag.data?.signedUrl ?? null
+    tag_image_url: tag.data?.signedUrl ?? null,
+    invoice_image_url: invoice.data?.signedUrl ?? null
   } as T;
 }
 
@@ -42,6 +46,7 @@ export function parseProductCreate(body: Record<string, unknown>) {
   const errors: string[] = [];
   const frontImagePath = readString(body.frontImagePath);
   const tagImagePath = readString(body.tagImagePath);
+  const invoiceImagePath = readOptionalString(body.invoiceImagePath);
   const purchaseDate = readDate(body.purchaseDate);
   const purchasePrice = readInteger(body.purchasePrice);
   const salePrice = readInteger(body.salePrice);
@@ -69,6 +74,7 @@ export function parseProductCreate(body: Record<string, unknown>) {
     data: {
       front_image_path: frontImagePath,
       tag_image_path: tagImagePath,
+      invoice_image_path: invoiceImagePath,
       purchase_date: purchaseDate,
       purchase_price: purchasePrice,
       sale_price: salePrice,

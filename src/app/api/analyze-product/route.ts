@@ -23,15 +23,28 @@ export async function POST(request: Request) {
     const formData = await request.formData();
     const frontImage = formData.get("frontImage");
     const tagImage = formData.get("tagImage");
+    const invoiceImage = formData.get("invoiceImage");
 
     if (!isValidImage(frontImage) || !isValidImage(tagImage)) {
       return NextResponse.json({ error: "正面写真とタグ写真を選んでください。" }, { status: 400 });
     }
 
-    const [frontDataUrl, tagDataUrl] = await Promise.all([
+    if (invoiceImage && !isValidImage(invoiceImage)) {
+      return NextResponse.json({ error: "納品書写真はPNG、JPEG、WEBP、GIFの10MB以内にしてください。" }, { status: 400 });
+    }
+
+    const [frontDataUrl, tagDataUrl, invoiceDataUrl] = await Promise.all([
       toDataUrl(frontImage),
-      toDataUrl(tagImage)
+      toDataUrl(tagImage),
+      isValidImage(invoiceImage) ? toDataUrl(invoiceImage) : Promise.resolve(null)
     ]);
+    const imageContent = [
+      { type: "input_image" as const, image_url: frontDataUrl, detail: "high" as const },
+      { type: "input_image" as const, image_url: tagDataUrl, detail: "high" as const },
+      ...(invoiceDataUrl
+        ? [{ type: "input_image" as const, image_url: invoiceDataUrl, detail: "high" as const }]
+        : [])
+    ];
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     const response = await client.responses.create({
       model: process.env.OPENAI_VISION_MODEL || "gpt-5.4-mini",
@@ -45,11 +58,13 @@ export async function POST(request: Request) {
                 "社交ダンス衣装店の商品登録用に、正面写真とタグ写真から候補値だけを判定してください。",
                 "AI結果は確定ではなく、人間が後で修正します。",
                 "商品カテゴリ、ダンス種目、色、サイズは必ず指定された選択肢から選んでください。",
-                "サイズはタグ写真の文字を優先し、読めない場合は不明にしてください。"
+                "サイズはタグ写真の文字を優先し、読めない場合は不明にしてください。",
+                "納品書写真がある場合は、仕入価格として使えそうな税込または合計金額を読み取ってください。",
+                "販売価格は商品写真やタグ写真に販売価格が明確に写っている場合だけ読み取ってください。",
+                "金額が読めない場合は0を返してください。"
               ].join("\n")
             },
-            { type: "input_image", image_url: frontDataUrl, detail: "high" },
-            { type: "input_image", image_url: tagDataUrl, detail: "high" }
+            ...imageContent
           ]
         }
       ],
@@ -66,10 +81,12 @@ export async function POST(request: Request) {
               dance_style: { type: "string", enum: DANCE_STYLES },
               color: { type: "string", enum: PRODUCT_COLORS },
               size: { type: "string", enum: PRODUCT_SIZES },
+              purchase_price: { type: "integer" },
+              sale_price: { type: "integer" },
               confidence: { type: "number" },
               raw_notes: { type: "string" }
             },
-            required: ["category", "dance_style", "color", "size", "confidence", "raw_notes"]
+            required: ["category", "dance_style", "color", "size", "purchase_price", "sale_price", "confidence", "raw_notes"]
           }
         }
       }
@@ -82,6 +99,8 @@ export async function POST(request: Request) {
       dance_style: isOption(DANCE_STYLES, parsed.dance_style) ? parsed.dance_style : "一般服",
       color: isOption(PRODUCT_COLORS, parsed.color) ? parsed.color : "不明",
       size: isOption(PRODUCT_SIZES, parsed.size) ? parsed.size : "不明",
+      purchase_price: readPositiveInteger(parsed.purchase_price),
+      sale_price: readPositiveInteger(parsed.sale_price),
       confidence: typeof parsed.confidence === "number" ? clamp(parsed.confidence, 0, 1) : 0,
       raw_notes: typeof parsed.raw_notes === "string" ? parsed.raw_notes : ""
     } satisfies AnalyzeProductResult);
@@ -104,4 +123,8 @@ function isValidImage(value: FormDataEntryValue | null): value is File {
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
+}
+
+function readPositiveInteger(value: unknown) {
+  return typeof value === "number" && Number.isInteger(value) && value > 0 ? value : null;
 }

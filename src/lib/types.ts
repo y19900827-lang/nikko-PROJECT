@@ -13,6 +13,8 @@ export type Product = {
   front_image_url?: string | null;
   tag_image_path: string;
   tag_image_url?: string | null;
+  invoice_image_path: string | null;
+  invoice_image_url?: string | null;
   registered_at: string;
   purchase_date: string;
   purchase_price: number;
@@ -35,6 +37,8 @@ export type AnalyzeProductResult = {
   dance_style: DanceStyle;
   color: ProductColor;
   size: ProductSize;
+  purchase_price: number | null;
+  sale_price: number | null;
   confidence: number;
   raw_notes: string;
 };
@@ -42,6 +46,7 @@ export type AnalyzeProductResult = {
 export type ProductCreateRequest = {
   frontImagePath: string;
   tagImagePath: string;
+  invoiceImagePath?: string | null;
   purchaseDate: string;
   purchasePrice: number;
   salePrice: number;

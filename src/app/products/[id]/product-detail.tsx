@@ -177,6 +177,11 @@ export default function ProductDetail({ productId }: { productId: string }) {
         <div className="detail-images">
           <div className="detail-image">{product.front_image_url ? <img src={product.front_image_url} alt="正面写真" /> : null}</div>
           <div className="detail-image">{product.tag_image_url ? <img src={product.tag_image_url} alt="タグ写真" /> : null}</div>
+          {product.invoice_image_url ? (
+            <div className="detail-image">
+              <img src={product.invoice_image_url} alt="納品書写真" />
+            </div>
+          ) : null}
         </div>
         <div className="panel detail-summary">
           <h1>{product.product_code}</h1>
@@ -204,11 +209,11 @@ export default function ProductDetail({ productId }: { productId: string }) {
           </label>
           <label className="field">
             <span>仕入価格</span>
-            <input type="number" min="0" value={form.purchasePrice} onChange={(event) => updateForm("purchasePrice", event.target.value)} required />
+            <input type="number" inputMode="numeric" min="0" value={form.purchasePrice} onChange={(event) => updateForm("purchasePrice", event.target.value)} required />
           </label>
           <label className="field">
             <span>販売価格</span>
-            <input type="number" min="0" value={form.salePrice} onChange={(event) => updateForm("salePrice", event.target.value)} required />
+            <input type="number" inputMode="numeric" min="0" value={form.salePrice} onChange={(event) => updateForm("salePrice", event.target.value)} required />
           </label>
           <SelectField label="ステータス" value={form.status} onChange={(value) => updateForm("status", value)} options={PRODUCT_STATUSES} />
           <label className="field">
