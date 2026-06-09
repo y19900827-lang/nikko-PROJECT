@@ -184,6 +184,49 @@ img {
   gap: 8px;
 }
 
+.list-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+}
+
+.selection-summary {
+  display: grid;
+  gap: 2px;
+}
+
+.selection-summary span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.folder-list {
+  display: grid;
+  gap: 20px;
+}
+
+.folder-section {
+  display: grid;
+  gap: 10px;
+}
+
+.folder-header {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--line);
+  color: var(--text);
+}
+
+.folder-header span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
 .product-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -203,6 +246,30 @@ img {
 
 .product-card:hover {
   border-color: var(--primary);
+}
+
+.product-card.selected {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(31, 111, 91, 0.15), var(--shadow);
+}
+
+.select-check {
+  grid-column: 1 / -1;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.select-check input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--primary);
 }
 
 .thumb {
@@ -284,6 +351,12 @@ img {
   color: var(--primary-strong);
   font-size: 18px;
   font-weight: 900;
+}
+
+.detail-link {
+  justify-self: start;
+  min-height: 36px;
+  padding-inline: 12px;
 }
 
 .empty-state,
@@ -439,8 +512,14 @@ img {
   }
 
   .toolbar,
-  .filter-actions {
+  .filter-actions,
+  .list-actions {
     width: 100%;
+  }
+
+  .list-actions {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .button {

@@ -25,7 +25,7 @@ export async function GET(_request: Request, context: RouteContext) {
     return new NextResponse(Buffer.from(bytes), {
       headers: {
         "Content-Type": "application/pdf",
-        "Content-Disposition": `inline; filename="${product.product_code}-label.pdf"`
+        "Content-Disposition": `attachment; filename="${product.product_code}-label.pdf"`
       }
     });
   } catch (caught) {

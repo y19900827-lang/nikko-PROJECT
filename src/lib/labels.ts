@@ -11,43 +11,76 @@ const A4_WIDTH = 595.28;
 const A4_HEIGHT = 841.89;
 const COLUMNS = 3;
 const ROWS = 4;
+const LABELS_PER_PAGE = COLUMNS * ROWS;
 const PAGE_MARGIN = 24;
 const GAP = 8;
 
 export async function generateSingleProductLabelPdf(product: Product) {
+  return generateLabelSheetPdf([product], { repeatSingleToFillPage: true });
+}
+
+export async function generateLabelSheetPdf(
+  products: Product[],
+  options: { repeatSingleToFillPage?: boolean } = {}
+) {
+  if (products.length === 0) {
+    throw new Error("値札PDFに出力する商品がありません。");
+  }
+
   const pdf = await PDFDocument.create();
-  const page = pdf.addPage([A4_WIDTH, A4_HEIGHT]);
   const { font, boldFont, supportsJapanese } = await loadFonts(pdf);
   const labelWidth = (A4_WIDTH - PAGE_MARGIN * 2 - GAP * (COLUMNS - 1)) / COLUMNS;
   const labelHeight = (A4_HEIGHT - PAGE_MARGIN * 2 - GAP * (ROWS - 1)) / ROWS;
+  const labels =
+    options.repeatSingleToFillPage && products.length === 1
+      ? Array.from({ length: LABELS_PER_PAGE }, () => products[0])
+      : products;
+
+  let page: PDFPage | null = null;
+
+  for (let index = 0; index < labels.length; index += 1) {
+    const product = labels[index];
+    const slot = index % LABELS_PER_PAGE;
+
+    if (slot === 0) {
+      page = pdf.addPage([A4_WIDTH, A4_HEIGHT]);
+    }
+
+    if (!page) {
+      throw new Error("値札PDFを作成できませんでした。");
+    }
+
+    const row = Math.floor(slot / COLUMNS);
+    const column = slot % COLUMNS;
+    const x = PAGE_MARGIN + column * (labelWidth + GAP);
+    const y = A4_HEIGHT - PAGE_MARGIN - labelHeight - row * (labelHeight + GAP);
+    const qrImage = await createQrImage(pdf, product);
+    const price = `\u00A5${new Intl.NumberFormat("ja-JP").format(product.sale_price)}`;
+
+    drawLabel(page, {
+      x,
+      y,
+      width: labelWidth,
+      height: labelHeight,
+      productCode: product.product_code,
+      price,
+      sizeLabel: supportsJapanese ? `サイズ: ${product.size}` : `Size: ${product.size}`,
+      qrImage,
+      font,
+      boldFont
+    });
+  }
+
+  return pdf.save();
+}
+
+async function createQrImage(pdf: PDFDocument, product: Product) {
   const qrDataUrl = await QRCode.toDataURL(generateQrPayload(product), {
     errorCorrectionLevel: "M",
     margin: 1,
     width: 160
   });
-  const qrImage = await pdf.embedPng(qrDataUrl);
-  const price = `\u00A5${new Intl.NumberFormat("ja-JP").format(product.sale_price)}`;
-
-  for (let row = 0; row < ROWS; row += 1) {
-    for (let column = 0; column < COLUMNS; column += 1) {
-      const x = PAGE_MARGIN + column * (labelWidth + GAP);
-      const y = A4_HEIGHT - PAGE_MARGIN - labelHeight - row * (labelHeight + GAP);
-      drawLabel(page, {
-        x,
-        y,
-        width: labelWidth,
-        height: labelHeight,
-        productCode: product.product_code,
-        price,
-        sizeLabel: supportsJapanese ? `サイズ: ${product.size}` : `Size: ${product.size}`,
-        qrImage,
-        font,
-        boldFont
-      });
-    }
-  }
-
-  return pdf.save();
+  return pdf.embedPng(qrDataUrl);
 }
 
 type DrawLabelInput = {
