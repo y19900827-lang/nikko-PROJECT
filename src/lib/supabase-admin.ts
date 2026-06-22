@@ -6,8 +6,8 @@ export const PRODUCT_IMAGES_BUCKET =
   process.env.SUPABASE_PRODUCT_IMAGES_BUCKET || "product-images";
 
 export function getSupabaseAdmin() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+  const supabaseUrl = cleanEnvValue(process.env.NEXT_PUBLIC_SUPABASE_URL);
+  const serviceRoleKey = cleanEnvValue(process.env.SUPABASE_SERVICE_ROLE_KEY);
 
   if (!supabaseUrl || !serviceRoleKey) {
     throw new Error("Supabaseの環境変数が未設定です。");
@@ -27,4 +27,12 @@ export function getSupabaseAdmin() {
   }
 
   return cachedClient;
+}
+
+function cleanEnvValue(value: string | undefined) {
+  if (!value) {
+    return "";
+  }
+
+  return value.trim().replace(/^=+/, "");
 }
