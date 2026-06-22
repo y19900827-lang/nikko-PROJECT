@@ -63,10 +63,7 @@ export async function GET(request: Request) {
     const products = await attachSignedImageUrls(supabase, (data ?? []) as Product[]);
     return NextResponse.json({ products });
   } catch (caught) {
-    return NextResponse.json(
-      { error: caught instanceof Error ? caught.message : "商品一覧を取得できませんでした。" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: toApiError(caught, "商品一覧を取得できませんでした。") }, { status: 500 });
   }
 }
 
@@ -103,9 +100,18 @@ export async function POST(request: Request) {
     const product = await attachSignedImageUrls(supabase, data as Product);
     return NextResponse.json({ product }, { status: 201 });
   } catch (caught) {
-    return NextResponse.json(
-      { error: caught instanceof Error ? caught.message : "商品を保存できませんでした。" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: toApiError(caught, "商品を保存できませんでした。") }, { status: 500 });
   }
+}
+
+function toApiError(caught: unknown, fallback: string) {
+  if (caught instanceof Error) {
+    if (caught.message.includes("fetch failed")) {
+      return "Supabaseに接続できませんでした。Vercelの環境変数、Supabaseプロジェクトの稼働状態、ネットワークを確認してください。";
+    }
+
+    return caught.message;
+  }
+
+  return fallback;
 }

@@ -28,7 +28,7 @@ export async function generateLabelSheetPdf(
   }
 
   const pdf = await PDFDocument.create();
-  const { font, boldFont, supportsJapanese } = await loadFonts(pdf);
+  const assets = await loadAssets(pdf);
   const labelWidth = (A4_WIDTH - PAGE_MARGIN * 2 - GAP * (COLUMNS - 1)) / COLUMNS;
   const labelHeight = (A4_HEIGHT - PAGE_MARGIN * 2 - GAP * (ROWS - 1)) / ROWS;
   const labels =
@@ -55,9 +55,6 @@ export async function generateLabelSheetPdf(
     const x = PAGE_MARGIN + column * (labelWidth + GAP);
     const y = A4_HEIGHT - PAGE_MARGIN - labelHeight - row * (labelHeight + GAP);
     const qrImage = await createQrImage(pdf, product);
-    const price = supportsJapanese
-      ? `\u00A5${new Intl.NumberFormat("ja-JP").format(product.sale_price)}`
-      : `JPY ${new Intl.NumberFormat("ja-JP").format(product.sale_price)}`;
 
     drawLabel(page, {
       x,
@@ -65,11 +62,11 @@ export async function generateLabelSheetPdf(
       width: labelWidth,
       height: labelHeight,
       productCode: product.product_code,
-      price,
-      sizeLabel: supportsJapanese ? `サイズ: ${product.size}` : `Size: ${toAsciiSize(product.size)}`,
+      itemLabel: formatItemLabel(product, assets.supportsJapanese),
+      price: formatPrice(product, assets.supportsJapanese),
+      sizeLabel: formatSizeLabel(product, assets.supportsJapanese),
       qrImage,
-      font,
-      boldFont
+      ...assets
     });
   }
 
@@ -85,24 +82,32 @@ async function createQrImage(pdf: PDFDocument, product: Product) {
   return pdf.embedPng(qrDataUrl);
 }
 
-type DrawLabelInput = {
+type LabelAssets = {
+  font: PDFFont;
+  boldFont: PDFFont;
+  logoImage: PDFImage | null;
+  supportsJapanese: boolean;
+};
+
+type DrawLabelInput = LabelAssets & {
   x: number;
   y: number;
   width: number;
   height: number;
   productCode: string;
+  itemLabel: string;
   price: string;
   sizeLabel: string;
   qrImage: PDFImage;
-  font: PDFFont;
-  boldFont: PDFFont;
 };
 
 function drawLabel(page: PDFPage, input: DrawLabelInput) {
-  const padding = 12;
-  const qrSize = Math.min(input.width * 0.32, 54);
+  const padding = 10;
+  const qrSize = Math.min(input.width * 0.34, 58);
   const textX = input.x + padding;
   const topY = input.y + input.height - padding - 20;
+  const contentWidth = input.width - padding * 2;
+  const accent = rgb(0.95, 0.56, 0.05);
 
   page.drawRectangle({
     x: input.x,
@@ -113,26 +118,52 @@ function drawLabel(page: PDFPage, input: DrawLabelInput) {
     borderWidth: 0.7
   });
 
-  page.drawText(input.productCode, {
+  const logoWidth = drawLogo(page, input);
+  const productCodeMaxWidth = Math.max(70, contentWidth - logoWidth - 8);
+
+  drawFittedText(page, input.productCode, {
     x: textX,
     y: topY,
+    maxWidth: productCodeMaxWidth,
     size: 16,
+    minSize: 12,
     font: input.boldFont,
     color: rgb(0.08, 0.09, 0.11)
   });
 
-  page.drawText(input.price, {
+  drawFittedText(page, input.itemLabel, {
     x: textX,
-    y: topY - 30,
-    size: 18,
-    font: input.boldFont,
-    color: rgb(0.05, 0.2, 0.18)
+    y: topY - 25,
+    maxWidth: contentWidth,
+    size: 10,
+    minSize: 8,
+    font: input.font,
+    color: rgb(0.2, 0.22, 0.25)
   });
 
-  page.drawText(input.sizeLabel, {
+  drawFittedText(page, input.price, {
     x: textX,
-    y: topY - 56,
-    size: 11,
+    y: topY - 55,
+    maxWidth: contentWidth,
+    size: 17,
+    minSize: 11,
+    font: input.boldFont,
+    color: rgb(0.06, 0.18, 0.15)
+  });
+
+  page.drawLine({
+    start: { x: textX, y: topY - 66 },
+    end: { x: textX + Math.min(contentWidth, 92), y: topY - 66 },
+    thickness: 1.1,
+    color: accent
+  });
+
+  drawFittedText(page, input.sizeLabel, {
+    x: textX,
+    y: topY - 86,
+    maxWidth: contentWidth - qrSize - 8,
+    size: 10,
+    minSize: 8,
     font: input.font,
     color: rgb(0.19, 0.22, 0.26)
   });
@@ -143,6 +174,73 @@ function drawLabel(page: PDFPage, input: DrawLabelInput) {
     width: qrSize,
     height: qrSize
   });
+}
+
+function drawLogo(page: PDFPage, input: DrawLabelInput) {
+  if (!input.logoImage) {
+    return 0;
+  }
+
+  const padding = 10;
+  const maxWidth = 42;
+  const maxHeight = 48;
+  const scale = Math.min(maxWidth / input.logoImage.width, maxHeight / input.logoImage.height);
+  const width = input.logoImage.width * scale;
+  const height = input.logoImage.height * scale;
+  const x = input.x + input.width - padding - width;
+  const y = input.y + input.height - padding - height;
+
+  page.drawImage(input.logoImage, { x, y, width, height });
+  return width;
+}
+
+function drawFittedText(
+  page: PDFPage,
+  text: string,
+  options: {
+    x: number;
+    y: number;
+    maxWidth: number;
+    size: number;
+    minSize: number;
+    font: PDFFont;
+    color: ReturnType<typeof rgb>;
+  }
+) {
+  let size = options.size;
+
+  while (size > options.minSize && options.font.widthOfTextAtSize(text, size) > options.maxWidth) {
+    size -= 0.5;
+  }
+
+  page.drawText(text, {
+    x: options.x,
+    y: options.y,
+    size,
+    font: options.font,
+    color: options.color
+  });
+}
+
+async function loadAssets(pdf: PDFDocument): Promise<LabelAssets> {
+  const { font, boldFont, supportsJapanese } = await loadFonts(pdf);
+  const logoImage = await loadLogo(pdf);
+  return { font, boldFont, supportsJapanese, logoImage };
+}
+
+async function loadLogo(pdf: PDFDocument) {
+  const logoPath = path.join(process.cwd(), "public", "nikko-logo.jpg");
+
+  if (!existsSync(logoPath)) {
+    return null;
+  }
+
+  try {
+    const logoBytes = await readFile(logoPath);
+    return pdf.embedJpg(logoBytes);
+  } catch {
+    return null;
+  }
 }
 
 async function loadFonts(pdf: PDFDocument) {
@@ -174,6 +272,50 @@ function resolveJapaneseFontPath() {
   return existsSync(bundledPath) ? bundledPath : null;
 }
 
+function formatPrice(product: Product, supportsJapanese: boolean) {
+  const amount = Math.max(0, Number(product.sale_price) || 0);
+  const formatted = new Intl.NumberFormat("ja-JP").format(amount);
+  return supportsJapanese ? `${formatted}円（税込）` : `${formatted} yen tax included`;
+}
+
+function formatItemLabel(product: Product, supportsJapanese: boolean) {
+  if (supportsJapanese) {
+    return `品目: ${product.dance_style} ${product.category}`;
+  }
+
+  return `Item: ${toAsciiDanceStyle(product.dance_style)} ${toAsciiCategory(product.category)}`;
+}
+
+function formatSizeLabel(product: Product, supportsJapanese: boolean) {
+  return supportsJapanese ? `サイズ: ${product.size}` : `Size: ${toAsciiSize(product.size)}`;
+}
+
+function toAsciiDanceStyle(danceStyle: Product["dance_style"]) {
+  const map: Record<Product["dance_style"], string> = {
+    ラテン: "Latin",
+    スタンダード: "Standard",
+    練習着: "Practice",
+    一般服: "Casual"
+  };
+
+  return map[danceStyle] ?? "Unknown";
+}
+
+function toAsciiCategory(category: Product["category"]) {
+  const map: Record<Product["category"], string> = {
+    ドレス: "Dress",
+    スカート: "Skirt",
+    トップス: "Tops",
+    メンズシャツ: "Mens Shirt",
+    シューズ: "Shoes",
+    アクセサリー: "Accessory",
+    小物: "Goods",
+    一般服: "Casual Wear"
+  };
+
+  return map[category] ?? "Unknown";
+}
+
 function toAsciiSize(size: Product["size"]) {
   const map: Record<Product["size"], string> = {
     S: "S",
@@ -181,7 +323,7 @@ function toAsciiSize(size: Product["size"]) {
     L: "L",
     LL: "LL",
     "3L以上": "3L+",
-    "不明": "Unknown"
+    不明: "Unknown"
   };
 
   return map[size] ?? "Unknown";

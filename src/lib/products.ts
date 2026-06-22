@@ -27,19 +27,33 @@ export async function attachSignedImageUrls<T extends Product | Product[]>(
 
   const product = value as Product;
   const [front, tag, invoice] = await Promise.all([
-    supabase.storage.from(PRODUCT_IMAGES_BUCKET).createSignedUrl(product.front_image_path, 60 * 60),
-    supabase.storage.from(PRODUCT_IMAGES_BUCKET).createSignedUrl(product.tag_image_path, 60 * 60),
-    product.invoice_image_path
-      ? supabase.storage.from(PRODUCT_IMAGES_BUCKET).createSignedUrl(product.invoice_image_path, 60 * 60)
-      : Promise.resolve({ data: null })
+    createSafeSignedUrl(supabase, product.front_image_path),
+    createSafeSignedUrl(supabase, product.tag_image_path),
+    product.invoice_image_path ? createSafeSignedUrl(supabase, product.invoice_image_path) : Promise.resolve(null)
   ]);
 
   return {
     ...product,
-    front_image_url: front.data?.signedUrl ?? null,
-    tag_image_url: tag.data?.signedUrl ?? null,
-    invoice_image_url: invoice.data?.signedUrl ?? null
+    front_image_url: front,
+    tag_image_url: tag,
+    invoice_image_url: invoice
   } as T;
+}
+
+async function createSafeSignedUrl(supabase: SupabaseClient, imagePath: string) {
+  try {
+    const { data, error } = await supabase.storage
+      .from(PRODUCT_IMAGES_BUCKET)
+      .createSignedUrl(imagePath, 60 * 60);
+
+    if (error) {
+      return null;
+    }
+
+    return data?.signedUrl ?? null;
+  } catch {
+    return null;
+  }
 }
 
 export function parseProductCreate(body: Record<string, unknown>) {
