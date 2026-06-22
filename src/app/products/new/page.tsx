@@ -252,11 +252,11 @@ export default function NewProductPage() {
               <input type="date" value={form.purchaseDate} onChange={(event) => updateForm("purchaseDate", event.target.value)} required />
             </label>
             <label className="field">
-              <span>仕入価格（不明なら0）</span>
+              <span>仕入価格（外には出ません）</span>
               <input type="number" inputMode="numeric" min="0" value={form.purchasePrice} onChange={(event) => updateForm("purchasePrice", event.target.value)} required />
             </label>
             <label className="field">
-              <span>販売価格（未定なら0）</span>
+              <span>販売価格</span>
               <input type="number" inputMode="numeric" min="0" value={form.salePrice} onChange={(event) => updateForm("salePrice", event.target.value)} required />
             </label>
             <label className="field">

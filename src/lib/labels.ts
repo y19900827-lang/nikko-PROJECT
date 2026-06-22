@@ -318,6 +318,7 @@ function toAsciiCategory(category: Product["category"]) {
 
 function toAsciiSize(size: Product["size"]) {
   const map: Record<Product["size"], string> = {
+    F: "Free",
     S: "S",
     M: "M",
     L: "L",

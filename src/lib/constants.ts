@@ -11,7 +11,7 @@ export const PRODUCT_CATEGORIES = [
 
 export const DANCE_STYLES = ["ラテン", "スタンダード", "練習着", "一般服"] as const;
 
-export const PRODUCT_SIZES = ["S", "M", "L", "LL", "3L以上", "不明"] as const;
+export const PRODUCT_SIZES = ["F", "S", "M", "L", "LL", "3L以上", "不明"] as const;
 
 export const PRODUCT_COLORS = [
   "赤",
