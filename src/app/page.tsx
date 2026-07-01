@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Download, Folder, Plus, RefreshCw, Search } from "lucide-react";
+import { Download, FileDown, Folder, Plus, RefreshCw, Search } from "lucide-react";
 import {
   DANCE_STYLES,
   PRODUCT_CATEGORIES,
@@ -68,6 +68,7 @@ export default function ProductListPage() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [exportingLabels, setExportingLabels] = useState(false);
+  const [exportingCsv, setExportingCsv] = useState(false);
   const [error, setError] = useState("");
 
   const queryString = useMemo(() => {
@@ -176,6 +177,37 @@ export default function ProductListPage() {
     });
   }
 
+  async function exportCsv() {
+    setExportingCsv(true);
+    setError("");
+
+    try {
+      const response = await fetch(`/api/products/export${queryString ? `?${queryString}` : ""}`, {
+        cache: "no-store"
+      });
+
+      if (!response.ok) {
+        const payload = await response.json();
+        throw new Error(payload.error ?? "CSVを作成できませんでした。");
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const date = new Date().toISOString().slice(0, 10).replaceAll("-", "");
+      link.href = url;
+      link.download = `nikko-products-${date}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "CSVを作成できませんでした。");
+    } finally {
+      setExportingCsv(false);
+    }
+  }
+
   async function exportSelectedLabels() {
     if (selectedIds.length === 0) {
       setError("値札PDFに出力する商品を選択してください。");
@@ -236,12 +268,16 @@ export default function ProductListPage() {
       <header className="top-bar">
         <div className="brand">
           <h1>商品管理</h1>
-          <p>社交ダンス衣装店</p>
+          <p>社交ダンス衣装店向け</p>
         </div>
         <div className="toolbar">
           <button className="button" type="button" onClick={loadProducts} disabled={loading}>
             <RefreshCw size={18} />
             更新
+          </button>
+          <button className="button" type="button" onClick={exportCsv} disabled={exportingCsv}>
+            <FileDown size={18} />
+            CSV出力
           </button>
           <Link className="button primary" href="/products/new">
             <Plus size={18} />
