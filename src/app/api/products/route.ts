@@ -36,12 +36,14 @@ export async function GET(request: Request) {
     if (isOption(PRODUCT_SIZES, size)) query = query.eq("size", size);
     if (isOption(PRODUCT_STATUSES, status)) query = query.eq("status", status);
 
-    const salePriceMin = Number(searchParams.get("salePriceMin"));
-    const salePriceMax = Number(searchParams.get("salePriceMax"));
-    if (Number.isFinite(salePriceMin) && salePriceMin >= 0) {
+    const salePriceMinParam = searchParams.get("salePriceMin");
+    const salePriceMaxParam = searchParams.get("salePriceMax");
+    const salePriceMin = salePriceMinParam ? Number(salePriceMinParam) : null;
+    const salePriceMax = salePriceMaxParam ? Number(salePriceMaxParam) : null;
+    if (salePriceMin !== null && Number.isFinite(salePriceMin) && salePriceMin >= 0) {
       query = query.gte("sale_price", salePriceMin);
     }
-    if (Number.isFinite(salePriceMax) && salePriceMax >= 0) {
+    if (salePriceMax !== null && Number.isFinite(salePriceMax) && salePriceMax >= 0) {
       query = query.lte("sale_price", salePriceMax);
     }
 
